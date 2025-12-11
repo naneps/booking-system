@@ -1,35 +1,51 @@
 // Path & name support; pakai key yang paling panjang (longest-prefix match)
 export const ROUTE_ICON_MAP: Record<string, string> = {
-  // Top level
-  
+  // --- Top Level ---
   '/': 'i-lucide-house',
-  '/master-data': 'i-lucide-database',
-  '/taksasi': 'i-lucide-trending-up',
-  '/planning-purchasing': 'i-lucide-clipboard-list',
-  '/purchasing-stock': 'i-lucide-boxes',
-  '/sales': 'i-lucide-bar-chart-3',
-  '/reporting': 'i-lucide-pie-chart',
-  '/report-visit': 'i-lucide-map-pin',
-  '/distribusi': 'i-lucide-truck',
+  '/floor-planner': 'i-lucide-layout',
+  '/bookings': 'i-lucide-calendar',
+  '/waiting-list': 'i-lucide-clock',
+  '/master': 'i-lucide-database',
+  '/customers': 'i-lucide-users',
+  '/staff': 'i-lucide-user-check',
+  '/payments': 'i-lucide-credit-card',
+  '/reports': 'i-lucide-pie-chart',
+  '/settings': 'i-lucide-settings',
 
-  // Master Data children
-  '/master-data/items': 'i-lucide-package',
-  '/master-data/item-variants': 'i-lucide-layers',
-  '/master-data/units': 'i-lucide-ruler',
+  // --- Floor Planner ---
+  '/floor-planner/lantai-1': 'i-lucide-layers',
+  '/floor-planner/lantai-2': 'i-lucide-layers',
+  '/floor-planner/outdoor': 'i-lucide-sun',
 
-  '/master-data/users': 'i-lucide-user-round',
-  '/master-data/users/create-user': 'i-lucide-user-plus',
-  
-  '/master-data/categories': 'i-lucide-folder-tree',
-  '/master-data/warehouses': 'i-lucide-building-2',
-  '/master-data/suppliers': 'i-lucide-handshake',
-  '/master-data/customers': 'i-lucide-users',
-  '/master-data/price-lists': 'i-lucide-badge-percent',
-  '/master-data/payment-terms': 'i-lucide-credit-card',
+  // --- Bookings ---
+  '/bookings/create': 'i-lucide-plus', // atau i-lucide-calendar-plus
+  '/bookings/calendar': 'i-lucide-calendar',
+  '/bookings/checkin': 'i-lucide-log-in',
 
-  // (opsional) by route name juga boleh
-  'master-data-items': 'i-lucide-package',
-  'master-data-item-variants': 'i-lucide-layers',
+  // --- Waiting List ---
+  '/waiting-list/create': 'i-lucide-user-plus', // Quick action
 
+  // --- Master Data (Sesuai update sebelumnya) ---
+  '/master/branches': 'i-lucide-store',
+  '/master/floors': 'i-lucide-layers-2',
+  '/master/tables': 'i-lucide-armchair',
 
+  // --- Customers ---
+  '/customers/create': 'i-lucide-user', // Quick action
+
+  // --- Reports ---
+  '/reports/occupancy': 'i-lucide-bar-chart-2',
+  '/reports/sales': 'i-lucide-dollar-sign',
+  '/reports/waiting-list': 'i-lucide-clock',
+
+  // --- Settings ---
+  '/settings/general': 'i-lucide-sliders',
+  '/settings/users': 'i-lucide-shield',
+  '/settings/notifications': 'i-lucide-bell',
+  '/settings/venue': 'i-lucide-map', // Jika masih ada link venue lama
+
+  // --- Optional: Support by Route Name (jika perlu) ---
+  'master-branches': 'i-lucide-store',
+  'master-tables': 'i-lucide-armchair',
+  'bookings-create': 'i-lucide-plus',
 }

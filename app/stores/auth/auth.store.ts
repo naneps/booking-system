@@ -8,13 +8,13 @@ export const useAuthStore = defineStore('auth', () => {
 
   const isAuthenticated = computed(() => !!user.value)
 
-  async function login(username: string, password: string) {
+  async function login(email: string, password: string) {
     pending.value = true
     error.value = null
     try {
       const res = await $fetch<{ ok: boolean; user: User }>('/api/auth/login', {
         method: 'POST',
-        body: { username, password }
+        body: { email, password }
       })
       user.value = res.user ?? null
       return user.value
@@ -30,7 +30,7 @@ export const useAuthStore = defineStore('auth', () => {
     // biarkan server handle (pakai /api/auth/me yang bisa fallback decode JWT)
     try {
       const res = await $fetch<any>('/api/auth/me')
-      user.value = (res?.user ?? res?.jwt ?? null) as User | null
+      user.value = (res?.data ?? null) as User | null
     } catch {
       user.value = null
     }

@@ -3,6 +3,12 @@ export default defineNuxtConfig({
   compatibilityDate: "2025-07-15",
   devtools: {enabled: true},
 
+  routeRules: {
+    //  "/**": { ssr: true },
+    // "/api/v1/**": {
+    //   proxy: `${process.env.EXTERNAL_API_BASE}/api/v1/**`,
+    // },
+  },
   modules: [
     "@nuxt/ui",
     "@nuxt/test-utils",
@@ -23,5 +29,4 @@ export default defineNuxtConfig({
     public: {},
   },
   css: ["assets/css/main.css"],
- 
 });

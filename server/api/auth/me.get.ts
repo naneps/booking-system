@@ -20,10 +20,10 @@ export default defineEventHandler(async (event) => {
     const data = await $fetch<any>(externalApiBase + externalMePath, {
       headers: {
         accept: 'application/json',
-        Authorization: `Bearer ${token}`,
+        Authorization: `Bearer ${token}`, 
       }
     })
-    return { ok: true, user: (data?.user ?? data) }
+    return { ok: true,  ...data }
   }
 
   const jwt = decodeJwt(token)

@@ -4,21 +4,31 @@ import AppBreadCrumb from "~/components/ui/AppBreadCrumb.vue";
 
 const { isNotificationsSlideoverOpen } = useDashboard()
 
-const items = [[{
-  label: 'New mail',
-  icon: 'i-lucide-send',
-  to: '/inbox'
-}, {
-  label: 'New customer',
-  icon: 'i-lucide-user-plus',
-  to: '/customers'
-}]] satisfies DropdownMenuItem[][]
+// Dropdown quick actions
+const items = [[
+  {
+    label: 'New booking',
+    icon: 'i-lucide-calendar-plus',
+    to: '/bookings/create'
+  },
+  {
+    label: 'Add walk-in',
+    icon: 'i-lucide-user-plus',
+    to: '/waiting-list/create'
+  },
+  {
+    label: 'New customer',
+    icon: 'i-lucide-user',
+    to: '/customers/create'
+  }
+]] satisfies DropdownMenuItem[][]
 
 const route = useRoute();
 const toast = useToast();
 
 const open = ref(false);
 
+// --- UPDATE DI SINI ---
 const links = [
   [
     {
@@ -27,134 +37,128 @@ const links = [
       to: "/",
       onSelect: () => { open.value = false }
     },
+
+    {
+      label: "Floor Planner",
+      icon: "i-lucide-layout",
+      to: "/floor-planner",
+      type: "trigger",
+      children: [
+        { label: "Lantai 1", icon: "i-lucide-layers", to: "/floor-planner/lantai-1", onSelect: () => { open.value = false } },
+        { label: "Lantai 2", icon: "i-lucide-layers", to: "/floor-planner/lantai-2", onSelect: () => { open.value = false } },
+        { label: "Outdoor",  icon: "i-lucide-sun",    to: "/floor-planner/outdoor",   onSelect: () => { open.value = false } },
+      ],
+    },
+
+    {
+      label: "Bookings",
+      icon: "i-lucide-calendar",
+      to: "/bookings",
+      type: "trigger",
+      children: [
+        { label: "All bookings",      icon: "i-lucide-list",     to: "/bookings",               onSelect: () => { open.value = false } },
+        { label: "Create booking",    icon: "i-lucide-plus",     to: "/bookings/create",        onSelect: () => { open.value = false } },
+        { label: "Calendar",          icon: "i-lucide-calendar", to: "/bookings/calendar",      onSelect: () => { open.value = false } },
+        { label: "Check-in / Walk-in",icon: "i-lucide-log-in",   to: "/bookings/checkin",       onSelect: () => { open.value = false } },
+      ],
+    },
+
+    {
+      label: "Waiting List",
+      icon: "i-lucide-clock",
+      to: "/waiting-list",
+      onSelect: () => { open.value = false }
+    },
+
+    // --- NEW MASTER DATA MENU ---
     {
       label: "Master Data",
       icon: "i-lucide-database",
-      to: "/master-data",
+      to: "/master",
       type: "trigger",
-      defaultOpen: true,
       children: [
-        //user
-        { label: "Users",           icon: "i-lucide-users",        to: "/master-data/users",           onSelect: () => { open.value = false } },
-        { label: "Items",           icon: "i-lucide-package",      to: "/master-data/items",           onSelect: () => { open.value = false } },
-        { label: "Item Variants",   icon: "i-lucide-layers",       to: "/master-data/item-variants",   onSelect: () => { open.value = false } },
-        { label: "Units",           icon: "i-lucide-ruler",        to: "/master-data/units",           onSelect: () => { open.value = false } },
-        { label: "Categories",      icon: "i-lucide-folder-tree",  to: "/master-data/categories",      onSelect: () => { open.value = false } },
-        { label: "Warehouses",      icon: "i-lucide-building-2",   to: "/master-data/warehouses",      onSelect: () => { open.value = false } },
-        { label: "Suppliers",       icon: "i-lucide-handshake",    to: "/master-data/suppliers",       onSelect: () => { open.value = false } },
-        { label: "Customers",       icon: "i-lucide-users",        to: "/master-data/customers",       onSelect: () => { open.value = false } },
-        { label: "Price Lists",     icon: "i-lucide-badge-percent",to: "/master-data/price-lists",     onSelect: () => { open.value = false } },
-        { label: "Payment Terms",   icon: "i-lucide-credit-card",  to: "/master-data/payment-terms",   onSelect: () => { open.value = false } },
-      ],
+        { label: "Branches", icon: "i-lucide-store",    to: "/master/branches", onSelect: () => { open.value = false } },
+        { label: "Floors",   icon: "i-lucide-layers-2", to: "/master/floors",   onSelect: () => { open.value = false } }, // Asumsi kamu buat page floors juga
+        { label: "Tables",   icon: "i-lucide-armchair", to: "/master/tables",   onSelect: () => { open.value = false } },
+      ]
     },
+
     {
-      label: "Taksasi (Ekspektasi)",
-      icon: "i-lucide-trending-up",
-      to: "/taksasi",
+      label: "Customers",
+      icon: "i-lucide-users",
+      to: "/customers",
       onSelect: () => { open.value = false }
     },
+
     {
-      label: "Planning Purchasing",
-      icon: "i-lucide-clipboard-list",
-      to: "/planning-purchasing",
+      label: "Staff",
+      icon: "i-lucide-user-check",
+      to: "/staff",
       onSelect: () => { open.value = false }
     },
+
     {
-      label: "Purchasing & Stok (Realisasi)",
-      icon: "i-lucide-boxes",
-      to: "/purchasing-stock",
+      label: "Payments",
+      icon: "i-lucide-credit-card",
+      to: "/payments",
       onSelect: () => { open.value = false }
     },
+
     {
-      label: "Sales",
-      icon: "i-lucide-bar-chart-3",
-      to: "/sales",
-      onSelect: () => { open.value = false }
-    },
-    {
-      label: "Reporting",
+      label: "Reports",
       icon: "i-lucide-pie-chart",
-      to: "/reporting",
-      onSelect: () => { open.value = false }
+      to: "/reports",
+      type: "trigger",
+      children: [
+        { label: "Occupancy", icon: "i-lucide-bar-chart-2", to: "/reports/occupancy", onSelect: () => { open.value = false } },
+        { label: "Sales",     icon: "i-lucide-dollar-sign", to: "/reports/sales",     onSelect: () => { open.value = false } },
+        { label: "Waiting List", icon: "i-lucide-clock", to: "/reports/waiting-list", onSelect: () => { open.value = false } },
+      ]
     },
+
     {
-      label: "Report Visit",
-      icon: "i-lucide-map-pin",
-      to: "/report-visit",
-      onSelect: () => { open.value = false }
-    },
-    {
-      label: "Distribusi",
-      icon: "i-lucide-truck",
-      to: "/distribusi",
-      onSelect: () => { open.value = false }
+      label: "Settings",
+      icon: "i-lucide-settings",
+      to: "/settings",
+      type: "trigger",
+      children: [
+        { label: "General", icon: "i-lucide-sliders", to: "/settings/general", onSelect: () => { open.value = false } },
+        { label: "Users & Roles",  icon: "i-lucide-shield", to: "/settings/users", onSelect: () => { open.value = false } },
+        { label: "Notification",   icon: "i-lucide-bell", to: "/settings/notifications", onSelect: () => { open.value = false } },
+      ]
     },
   ],
   [
     {
       label: "Help & Support",
       icon: "i-lucide-life-buoy",
-      to: "https://github.com/nuxt-ui-templates/dashboard",
+      to: "https://docs.example.com",
       target: "_blank",
     },
   ],
 ] satisfies NavigationMenuItem[][];
+
 
 const groups = computed(() => [
   {
     id: "links",
     label: "Go to",
     items: links.flat(),
-  },
-  {
-    id: "code",
-    label: "Code",
-    items: [
-      {
-        id: "source",
-        label: "View page source",
-        icon: "i-simple-icons-github",
-        to: `https://github.com/nuxt-ui-templates/dashboard/blob/main/app/pages${
-          route.path === "/" ? "/index" : route.path
-        }.vue`,
-        target: "_blank",
-      },
-    ],
-  },
+  }
 ]);
 
+// ... sisa kode onMounted sama ...
 onMounted(async () => {
   const cookie = useCookie("cookie-consent");
   if (cookie.value === "accepted") {
     return;
   }
-
-  toast.add({
-    title:
-      "We use first-party cookies to enhance your experience on our website.",
-    duration: 0,
-    close: false,
-    actions: [
-      {
-        label: "Accept",
-        color: "neutral",
-        variant: "outline",
-        onClick: () => {
-          cookie.value = "accepted";
-        },
-      },
-      {
-        label: "Opt out",
-        color: "neutral",
-        variant: "ghost",
-      },
-    ],
-  });
+  // ...
 });
 </script>
 
 <template>
-  <UDashboardGroup unit="rem">
+    <UDashboardGroup unit="rem">
     <UDashboardSidebar
       id="default"
       v-model:open="open"
@@ -231,6 +235,5 @@ onMounted(async () => {
       </template>
     </UDashboardPanel>
 
-    <!-- <NotificationsSlideover /> -->
-  </UDashboardGroup>
+    </UDashboardGroup>
 </template>

@@ -130,11 +130,6 @@ async function onSubmit() {
 
           <UButton type="submit" :loading="loading || auth.pending" size="lg" block>Masuk</UButton>
 
-
-          <div class="grid grid-cols-2 gap-3">
-            <UButton variant="outline" block icon="i-simple-icons-google" :disabled="loading || auth.pending">Google</UButton>
-            <UButton variant="outline" block icon="i-simple-icons-github" :disabled="loading || auth.pending">GitHub</UButton>
-          </div>
         </UForm>
       </UCard>
     </div>

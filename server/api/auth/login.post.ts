@@ -12,9 +12,9 @@ function maxAgeFromJwt(token?: string) {
 
 export default defineEventHandler(async (event) => {
   const { externalApiBase, externalLoginPath, authCookieName , isDev } = useRuntimeConfig()
-  const body = await readBody<{ username: string; password: string }>(event)
-  if (!body?.username || !body?.password) {
-    throw createError({ statusCode: 400, statusMessage: 'username & password wajib' })
+  const body = await readBody<{ email: string; password: string }>(event)
+  if (!body?.email || !body?.password) {
+    throw createError({ statusCode: 400, statusMessage: 'email & password wajib' })
   }
 
   const res = await $fetch<{ token?: string; user?: any }>(externalApiBase + externalLoginPath, {
