@@ -17,6 +17,7 @@ export const useBranchStore = defineStore('branch-store', () => {
     try {
       const response = await useApi<any>('/api/v1/branches', { query: params })
       branches.value = response.data
+      console.log("response.data", response.data)
       totalItems.value = response.meta?.total || 0
     } finally {
       loading.value = false
@@ -24,20 +25,44 @@ export const useBranchStore = defineStore('branch-store', () => {
   }
 
   // 2. Fetch List (Dipakai di Dropdown page floors.vue)
-  async function fetchBranchList() {
-    // Kalau sudah ada data, gak usah fetch lagi (hemat request)
-    if (branchList.value.length > 0) return
+// useBranchStore.ts (relevant parts)
+async function fetchBranchList(params: { q?: string; page?: number; per_page?: number } = {}) {
+  // Jika ada query q, kita wajib fetch ulang. Jika tidak ada q dan branchList sudah ada -> optional skip
+  if (!params.q && branchList.value.length > 0) return
 
-    try {
-      // Ambil 100 data agar masuk semua di dropdown
-      const response = await useApi<any>('/api/v1/branches', { 
-        query: { per_page: 100 } 
-      })
-      branchList.value = response.data
-    } catch (e) {
-      console.error(e)
-    }
+  loading.value = true
+  try {
+    const res = await useApi<any>('/api/v1/branches', {
+      query: {
+        page: params.page ?? 1,
+        per_page: params.per_page ?? 100,
+        q: params.q ?? ''
+      }
+    })
+
+    // Defensive parsing: beberapa API return { data: [...] } (paginated) atau langsung array
+    const payload = res ?? {}
+    // Prefer top-level data (paginated)
+    let data = payload.data ?? payload // fallback
+
+    // If payload.data itself contains data property (double nested), try that:
+    if (data && data.data) data = data.data
+
+    // Ensure array
+    if (!Array.isArray(data)) data = []
+
+    // Set branchList (reset even if empty)
+    branchList.value = data
+
+  } catch (e) {
+    console.error('fetchBranchList error', e)
+    // reset to empty to avoid stale items showing
+    branchList.value = []
+  } finally {
+    loading.value = false
   }
+}
+
 
   // ... (create, update, delete biarkan sama) ...
   async function createBranch(payload: Partial<Branch>) {

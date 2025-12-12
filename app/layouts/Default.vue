@@ -9,7 +9,7 @@ const items = [[
   {
     label: 'New booking',
     icon: 'i-lucide-calendar-plus',
-    to: '/bookings/create'
+    to: '/bookings/create-new'
   },
   {
     label: 'Add walk-in',
@@ -57,7 +57,7 @@ const links = [
       type: "trigger",
       children: [
         { label: "All bookings",      icon: "i-lucide-list",     to: "/bookings",               onSelect: () => { open.value = false } },
-        { label: "Create booking",    icon: "i-lucide-plus",     to: "/bookings/create",        onSelect: () => { open.value = false } },
+        { label: "Create booking",    icon: "i-lucide-plus",     to: "/bookings/create-new",        onSelect: () => { open.value = false } },
         { label: "Calendar",          icon: "i-lucide-calendar", to: "/bookings/calendar",      onSelect: () => { open.value = false } },
         { label: "Check-in / Walk-in",icon: "i-lucide-log-in",   to: "/bookings/checkin",       onSelect: () => { open.value = false } },
       ],
