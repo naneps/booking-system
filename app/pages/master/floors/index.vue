@@ -299,7 +299,7 @@ function handleDelete(id: number) {
 
           <div class="flex items-center gap-2">
             <span class="text-xs text-neutral-500 font-medium hidden sm:inline">Rows:</span>
-            <USelect v-model="pageSize" :options="[10, 20, 50, 100]" class="w-20" size="sm" />
+            <USelect v-model="pageSize" :items="[10, 20, 50, 100]" class="w-20" size="sm" />
           </div>
         </div>
       </div>

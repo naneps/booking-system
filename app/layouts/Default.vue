@@ -167,7 +167,7 @@ onMounted(async () => {
       class="bg-elevated/25"
       :ui="{footer: 'lg:border-t lg:border-default'}">
       <template #header="{collapsed}">
-        <TeamsMenu :collapsed="collapsed" />
+         <h1 class="text-2xl font-semibold">{{ collapsed ? "D" : "Dashboard" }}</h1>
       </template>
 
       <template #default="{collapsed}">

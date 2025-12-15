@@ -1,8 +1,8 @@
+
 <script setup lang="ts">
 import type { TableColumn } from "@nuxt/ui";
 import { getCoreRowModel } from "@tanstack/vue-table";
 import { h, onMounted, ref, resolveComponent, watch } from "vue";
-import type { Booking } from "~/types/transaction";
 
 /* --- COMPONENTS --- */
 const UButton = resolveComponent("UButton");
@@ -13,8 +13,6 @@ const USelectMenu = resolveComponent("USelectMenu");
 const UIcon = resolveComponent("UIcon");
 const toast = useToast();
 
-// Asumsi komponen ini sudah auto-import atau teregistrasi global
-// Jika belum, uncomment baris di bawah:
 // import BranchSelect from "~/components/common/BranchSelect.vue";
 // import FloorSelect from "~/components/common/FloorSelect.vue";
 
@@ -27,38 +25,61 @@ const q = ref("");
 const page = ref(1);
 const pageSize = ref(10);
 
-// Filter State
+// --- FILTERS STATE ---
 const selectedBranchFilter = ref<number | undefined>(undefined);
 const selectedFloorFilter = ref<number | undefined>(undefined);
 const selectedStatusFilter = ref<string | undefined>(undefined);
 
+// BARU: Filter Tanggal
+const filterDateFrom = ref<string | undefined>(undefined);
+const filterDateTo = ref<string | undefined>(undefined);
+
+// Sorting
+const sort = ref<{ column: string; direction: 'asc' | 'desc' } | null>({ column: 'start_at', direction: 'desc' });
+
 const statusOptions = [
   "pending",
   "confirmed",
-  "checked_in", // Sesuai backend usually 'checked_in' or 'seated'
+  "checked_in",
   "completed",
   "cancelled",
 ];
 
 /* --- FETCH DATA --- */
 const refreshData = async () => {
-  await bookingStore.fetchBookings({
+  const params: any = {
     page: page.value,
     per_page: pageSize.value,
     q: q.value,
     branch_id: selectedBranchFilter.value,
-    // floor_id: selectedFloorFilter.value, // Aktifkan jika backend support filter floor
+    // floor_id: selectedFloorFilter.value, // Aktifkan jika backend support
     status: selectedStatusFilter.value,
-    // q: q.value // Aktifkan jika backend support search query
-  });
+    order_by: sort.value?.column,
+    order_dir: sort.value?.direction,
+    
+    // BARU: Kirim Date Range ke Backend
+    from: filterDateFrom.value,
+    to: filterDateTo.value
+  };
+
+  await bookingStore.fetchBookings(params);
 };
 
 onMounted(() => {
   refreshData();
 });
 
-// Watchers
-watch([page, pageSize, selectedBranchFilter, selectedFloorFilter, selectedStatusFilter], () => {
+// Watchers: Auto refresh saat filter berubah
+watch([
+  page, 
+  pageSize, 
+  selectedBranchFilter, 
+  selectedFloorFilter, 
+  selectedStatusFilter, 
+  filterDateFrom, // Watch From
+  filterDateTo,   // Watch To
+  sort
+], () => {
   refreshData();
 });
 
@@ -85,7 +106,7 @@ const handleConfirm = async (id: number) => {
 
 const handleSeat = async (id: number) => {
   try {
-    await bookingStore.checkIn(id); // API: /check-in
+    await bookingStore.checkIn(id); 
     toast.add({ title: "Customer Seated", color: "info", icon: "i-lucide-armchair" });
     refreshData();
   } catch (e: any) {
@@ -95,7 +116,7 @@ const handleSeat = async (id: number) => {
 
 const handleComplete = async (id: number) => {
   try {
-    await bookingStore.checkOut(id); // API: /check-out
+    await bookingStore.checkOut(id); 
     toast.add({ title: "Booking Completed", color: "success", icon: "i-lucide-check-circle" });
     refreshData();
   } catch (e: any) {
@@ -105,7 +126,7 @@ const handleComplete = async (id: number) => {
 
 const handleCancel = async (id: number) => {
   try {
-    await bookingStore.deleteBooking(id); // API: DELETE (atau endpoint cancel khusus)
+    await bookingStore.deleteBooking(id); 
     toast.add({ title: "Booking Cancelled", color: "error", icon: "i-lucide-x-circle" });
     refreshData();
   } catch (e: any) {
@@ -113,17 +134,29 @@ const handleCancel = async (id: number) => {
   }
 };
 
+/* --- HELPERS --- */
+const resetFilters = () => {
+  q.value = ''; 
+  selectedBranchFilter.value = undefined; 
+  selectedFloorFilter.value = undefined; 
+  selectedStatusFilter.value = undefined;
+  filterDateFrom.value = undefined;
+  filterDateTo.value = undefined;
+}
+
 /* --- TABLE COLUMNS --- */
 const columns: TableColumn<Booking>[] = [
   {
     accessorKey: "code",
     header: "CODE",
+    enableSorting: true,
     size: 60,
-    cell: ({ row }) => h("span", { class: "font-mono text-xs text-neutral-500" }, `#${row.original.code}`),
+    cell: ({ row }) => h("span", { class: "font-mono text-xs text-neutral-500" }, `#${row.original.code || row.original.id}`),
   },
   {
     accessorKey: "customer_name",
     header: "Customer",
+    enableSorting: true,
     cell: ({ row }) => {
         const name = row.getValue("customer_name") || "Guest";
         const phone = row.original.customer_phone || "-";
@@ -136,12 +169,14 @@ const columns: TableColumn<Booking>[] = [
   {
     accessorKey: "party_size",
     header: "Pax",
+    enableSorting: true,
     size: 70,
     cell: ({ row }) => h(UBadge, { variant: "subtle", size: "xs", color: 'neutral' }, () => `${row.getValue("party_size")} pax`),
   },
   {
-    accessorKey: "start_at", // Menggunakan start_at dari JSON backend
+    accessorKey: "start_at",
     header: "Schedule",
+    enableSorting: true,
     minSize: 180,
     cell: ({ row }) => {
         const start = row.original.start_at ? new Date(row.original.start_at) : null;
@@ -149,9 +184,7 @@ const columns: TableColumn<Booking>[] = [
         
         if (!start) return "-";
         
-        // Format: Dec 12
         const dateStr = start.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-        // Format: 06:00 PM - 08:18 PM
         const timeStr = `${start.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true })} - ${end ? end.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }) : '?'}`;
 
         return h("div", { class: "flex flex-col" }, [
@@ -163,6 +196,7 @@ const columns: TableColumn<Booking>[] = [
   {
     accessorKey: "tables",
     header: "Tables",
+    enableSorting: false,
     cell: ({ row }) => {
       const tables = row.original.tables || [];
       if (!tables.length) return h("span", { class: "text-neutral-400 italic text-xs" }, "Unassigned");
@@ -170,7 +204,7 @@ const columns: TableColumn<Booking>[] = [
       return h("div", { class: "flex flex-wrap gap-1" }, 
         tables.map((t: any) => 
             h(UBadge, { size: "xs", variant: "outline", class: "font-mono border-neutral-300 dark:border-neutral-700" }, 
-            () => t.name) // Menampilkan nama meja (misal: "1-B9")
+            () => t.name)
         )
       );
     },
@@ -178,19 +212,20 @@ const columns: TableColumn<Booking>[] = [
   {
     accessorKey: "status",
     header: "Status",
+    enableSorting: true,
     cell: ({ row }) => {
       const status = row.getValue("status") as string;
       const mapping: Record<string, string> = {
-        pending: "warning",   // Kuning
-        confirmed: "primary", // Hijau/Primary
-        checked_in: "info",   // Biru
-        seated: "info",       // Biru (alias)
-        completed: "success", // Hijau Tua
-        cancelled: "neutral", // Abu-abu
+        pending: "warning",
+        confirmed: "primary",
+        checked_in: "info",
+        seated: "info",
+        completed: "success",
+        cancelled: "neutral",
       };
       
       const color = mapping[status] || "neutral";
-      const label = status.replace('_', ' '); // checked_in -> checked in
+      const label = status.replace('_', ' '); 
       
       return h(UBadge, { color: color as any, variant: "subtle", size: "xs", class: "capitalize" }, () => label);
     },
@@ -198,40 +233,28 @@ const columns: TableColumn<Booking>[] = [
   {
     id: "actions",
     header: "",
+    enableSorting: false,
     cell: ({ row }) => {
       const b = row.original;
-      
-      // -- BUTTON HELPERS (Sama seperti request awal) --
       const btnBase = 'text-xs w-20 h-7 flex items-center justify-center transition-all';
       const ghostBase = btnBase + ' bg-transparent hover:bg-neutral-100 dark:hover:bg-neutral-800';
-
       const makeBtn = (label: string, props: any = {}) =>
         h(UButton, { ...props, class: props.class ? `${props.class} ${btnBase}` : btnBase }, { default: () => label });
-
       const makeGhost = (label: string, props: any = {}) =>
         h(UButton, { ...props, variant: 'ghost', class: props.class ? `${props.class} ${ghostBase}` : ghostBase }, { default: () => label });
 
       const nodeList: any[] = [];
 
-      // -- LOGIC ACTIONS SESUAI STATUS --
       if (b.status === 'pending' || b.status === 'reserved') {
-        // Confirm & Cancel
         nodeList.push(makeBtn('Confirm', { color: 'primary', onClick: () => handleConfirm(b.id) }));
         nodeList.push(makeGhost('Cancel', { color: 'error', onClick: () => handleCancel(b.id) }));
-      
       } else if (b.status === 'confirmed') {
-        // Seat (Check In) & Cancel
         nodeList.push(makeBtn('Seat', { color: 'info', onClick: () => handleSeat(b.id) }));
         nodeList.push(makeGhost('Cancel', { color: 'error', onClick: () => handleCancel(b.id) }));
-      
       } else if (b.status === 'checked_in' || b.status === 'seated') {
-        // Complete (Check Out) & Cancel
         nodeList.push(makeBtn('Complete', { color: 'success', onClick: () => handleComplete(b.id) }));
-        // Kadang user salah check-in, jadi mungkin butuh cancel, atau void
         nodeList.push(makeGhost('Cancel', { color: 'error', onClick: () => handleCancel(b.id) }));
-      
       } 
-
       return h('div', { class: 'flex items-center justify-end gap-2' }, nodeList);
     }
   }
@@ -252,11 +275,12 @@ const columns: TableColumn<Booking>[] = [
             </div>
           </div>
           <div class="flex gap-2">
-            <UButton color="primary" icon="i-lucide-plus">New Booking</UButton>
+            <UButton to="/bookings/create-new" color="primary" icon="i-lucide-plus">New Booking</UButton>
           </div>
         </div>
 
         <div class="flex flex-wrap items-end gap-3">
+            
             <div class="flex-1 min-w-[200px]">
                 <UInput 
                   v-model="q" 
@@ -267,77 +291,88 @@ const columns: TableColumn<Booking>[] = [
                 />
             </div>
             
-            <div class="w-48">
-                 <BranchSelect
-                    v-model="selectedBranchFilter"
-                    class="w-full"
-                    placeholder="All Branches"
+            <div class="flex items-center gap-2">
+              <div class="w-36">
+                 <UInput 
+                    v-model="filterDateFrom" 
+                    type="date" 
+                    placeholder="From" 
+                    class="w-full" 
+                    :ui="{ icon: { trailing: { pointer: '' } } }"
                  />
-            </div>
-
-            <div class="w-48">
-                 <FloorSelect
-                    v-model="selectedFloorFilter"
-                    :branch-id="selectedBranchFilter"
+              </div>
+              <span class="text-neutral-400">-</span>
+              <div class="w-36">
+                 <UInput 
+                    v-model="filterDateTo" 
+                    type="date" 
+                    placeholder="To" 
                     class="w-full"
-                    placeholder="All Floors"
                  />
+              </div>
             </div>
 
             <div class="w-40">
+                 <BranchSelect
+                    v-model="selectedBranchFilter"
+                    class="w-full"
+                    placeholder="Branch"
+                 />
+            </div>
+
+            <div class="w-32">
                  <USelectMenu
                     v-model="selectedStatusFilter"
-                    :options="statusOptions"
-                    placeholder="All Status"
+                    :items="statusOptions"
+                    placeholder="Status"
                     class="w-full"
                 />
             </div>
             
             <UButton
-                v-if="q || selectedBranchFilter || selectedFloorFilter || selectedStatusFilter"
+                v-if="q || selectedBranchFilter || selectedStatusFilter || filterDateFrom || filterDateTo"
                 icon="i-lucide-x"
                 color="neutral"
                 variant="ghost"
-                @click="q = ''; selectedBranchFilter = undefined; selectedFloorFilter = undefined; selectedStatusFilter = undefined;"
+                @click="resetFilters"
+                tooltip="Reset Filters"
             />
             
-             <div class="flex items-center gap-2 ml-auto border-l border-neutral-200 dark:border-neutral-800 pl-3">
+            <div class="flex items-center gap-2 ml-auto border-l border-neutral-200 dark:border-neutral-800 pl-3">
                  <span class="text-xs text-neutral-500 font-medium">Rows:</span>
-                 <USelect v-model="pageSize" :options="[5, 10, 20, 50]" class="w-16" size="sm" />
+                 <USelect v-model="pageSize" :items="[5, 10, 20, 50]" class="w-16" size="sm" />
              </div>
         </div>
       </div>
 
-          <UTable
-
-            sticky
-            :columns="columns"
-            :data="bookings"
-            :loading="loading"
-            loading-animation="carousel"
-            :table-options="{ getCoreRowModel: getCoreRowModel() }"
-            class="w-full"
-            :ui="{ 
-                th: { base: 'whitespace-nowrap bg-neutral-50 dark:bg-neutral-800/50 py-3.5 text-neutral-500 font-semibold' },
-                td: { base: 'py-3 border-b border-neutral-100 dark:border-neutral-800/50' }
-            }"
-          >
-             <template #empty-state>
-                <div class="flex flex-col items-center justify-center h-48 text-neutral-400 gap-3">
-                  <UIcon name="i-lucide-search-x" class="w-10 h-10 opacity-30" />
-                  <span>No bookings found</span>
-                </div>
-             </template>
-          </UTable>
+      <UTable
+        v-model:sort="sort"
+        sticky
+        :columns="columns"
+        :data="bookings"
+        :loading="loading"
+        loading-animation="carousel"
+        :table-options="{ getCoreRowModel: getCoreRowModel() }"
+        class="w-full"
+        :ui="{ 
+             th: { base: 'whitespace-nowrap bg-neutral-50 dark:bg-neutral-800/50 py-3 text-neutral-500 font-semibold' },
+             td: { base: 'py-3 border-b border-neutral-100 dark:border-neutral-800/50' }
+        }"
+      >
+         <template #empty-state>
+            <div class="flex flex-col items-center justify-center h-48 text-neutral-400 gap-3">
+              <UIcon name="i-lucide-search-x" class="w-10 h-10 opacity-30" />
+              <span>No bookings found</span>
+            </div>
+         </template>
+      </UTable>
 
       <div class="p-3 border-t border-neutral-200 dark:border-neutral-800 flex justify-between items-center bg-neutral-50/50 dark:bg-neutral-900">
          <span class="text-xs text-neutral-500">Total: <strong>{{ totalItems }}</strong> bookings</span>
          <UPagination 
             v-model:page="page" 
             :total="totalItems" 
-
-            :page-count="pageSize" 
-            :max="5" 
+            :items-per-page="pageSize" 
             size="xs" 
             :disabled="loading" 
          />

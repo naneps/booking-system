@@ -7,7 +7,8 @@ export default withNuxt(
       "@typescript-eslint/no-explicit-any": "off",
       "no-use-before-define": "off",
        "@typescript-eslint/no-empty-object-type": "off",
-       "@unused-imports/no-unused-imports": "off",
+       "@unused-imports/no-unused-imports": "off",  
+       "@typescript-eslint/no-unused-vars": "off",
     },
   },
   {

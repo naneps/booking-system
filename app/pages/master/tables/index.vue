@@ -499,7 +499,7 @@ async function handleRelease(id: number) {
             >
             <USelect
               v-model="pageSize"
-              :options="[10, 20, 50, 100]"
+              :items="[10, 20, 50, 100]"
               class="w-20"
               size="sm" />
           </div>

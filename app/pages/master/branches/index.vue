@@ -280,7 +280,7 @@ function handleDelete(id: number) {
              <span class="text-xs text-neutral-500 font-medium hidden sm:inline">Rows:</span>
              <USelect 
                v-model="pageSize" 
-               :options="[10, 20, 50, 100]" 
+               :items="[10, 20, 50, 100]" 
                class="w-20"
                size="sm"
              />
@@ -327,9 +327,9 @@ function handleDelete(id: number) {
             Total: <strong class="text-neutral-700 dark:text-white">{{ totalItems }}</strong> records
          </span>
          <UPagination 
-            v-model="page" 
+            v-model:page="page" 
             :total="totalItems" 
-            :page-count="pageSize" 
+            :items-per-page="pageSize" 
             :max="5"
             size="xs"
             :disabled="loading"

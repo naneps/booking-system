@@ -13,7 +13,7 @@ export const useBookingStore = defineStore('booking-store', () => {
      * FETCH PAGINATED BOOKINGS
      * Corresponds to BookingService::paginate & Route::get('bookings')
      */
-    async function fetchBookings(params: { q?: string; page: number; per_page: number } & BookingFilter) {
+    async function fetchBookings(params: { q?: string; page: number; per_page: number} & BookingFilter) {
         loading.value = true;
         error.value = null;
         try {
