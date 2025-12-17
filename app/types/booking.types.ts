@@ -27,7 +27,6 @@ export interface Booking {
 }
 
 export interface BookingForm {
-  branch_id: number;
   customer_name?: string;
   customer_phone?: string;
   party_size: number;
@@ -45,7 +44,6 @@ export interface BookingForm {
 }
 
 export interface BookingFilter {
-  branch_id?: number;
   status?: string;
   
   // --- TAMBAHAN BARU ---

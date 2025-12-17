@@ -41,13 +41,14 @@ export interface FloorTable {
 export const useFloorPlanStore = defineStore('floor-plan-store', () => {
   const tables = ref<FloorTable[]>([]);
   const loadingSnapshot = ref(false);
+  const brancHId = useCookie('selected_branch_id', {path: '/'})
 
-  async function fetchSnapshot(params: { branch_id: number; floor_id?: number | null }) {
+  async function fetchSnapshot(params: { floor_id?: number | null }) {
     loadingSnapshot.value = true;
     try {
       const response = await useApi<any>('/api/v1/floors/snapshot', {
         method: 'GET',
-        params: params, 
+        params: {...params , branch_id: brancHId.value}, 
       });
       tables.value = response.data;
     } catch (error) {

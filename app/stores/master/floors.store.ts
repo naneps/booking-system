@@ -5,14 +5,17 @@ export const useFloorStore = defineStore('floor-store', () => {
   const floors = ref<Floor[]>([])
   const totalItems = ref(0)
   const loading = ref(false)
-
+  const brancHId = useCookie('selected_branch_id', { path: '/' })
+  
   // --- READ ---
-  // Kita tambahkan parameter 'branch_id' biar nanti bisa filter lantai per cabang
-  async function fetchFloors(params: { page: number; per_page: number; q?: string; branch_id?: number | null }) {
+  async function fetchFloors(params: { page: number; per_page: number; q?: string; }) {
     loading.value = true
     try {
       const response = await useApi<any>('/api/v1/floors', {
-        query: params 
+        query: {...params,
+          branch_id: brancHId.value,
+          order_by: 'ordered'
+        } 
       })
       
       floors.value = response.data
@@ -30,7 +33,7 @@ export const useFloorStore = defineStore('floor-store', () => {
   async function createFloor(payload: Partial<Floor>) {
     const { data } = await useApi<{ data: Floor }>('/api/v1/floors', {
       method: 'POST',
-      body: payload
+      body: {  ...payload , branch_id: brancHId.value }
     })
     return data
   }
@@ -39,7 +42,7 @@ export const useFloorStore = defineStore('floor-store', () => {
   async function updateFloor(id: number, payload: Partial<Floor>) {
     const { data } = await useApi<{ data: Floor }>(`/api/v1/floors/${id}`, {
       method: 'PUT',
-      body: payload
+      body: {...payload  , branch_id: brancHId.value}
     })
     
     // Update state lokal biar UI langsung berubah
@@ -49,10 +52,34 @@ export const useFloorStore = defineStore('floor-store', () => {
     return data
   }
 
+  // --- REORDER ---
+  async function reorderFloors(newOrder: Floor[]) {
+    // Update UI dulu (optimistic update)
+    const oldFloors = [...floors.value]
+    floors.value = newOrder
+    
+    try {
+      // Kirim ke backend
+      const orders = newOrder.map((floor, index) => ({
+        id: floor.id,
+        sort_order: index
+      }))
+      
+      await useApi('/api/v1/floors/reorder', {
+        method: 'POST',
+        body: { orders }
+      })
+      
+    } catch (error) {
+      // Kalo gagal, rollback ke order lama
+      floors.value = oldFloors
+      throw error
+    }
+  }
+
   // --- DELETE ---
   async function deleteFloor(id: number) {
     await useApi(`/api/v1/floors/${id}`, { method: 'DELETE' })
-    // Kita refresh data dari Page saja nanti
   }
 
   return {
@@ -62,6 +89,7 @@ export const useFloorStore = defineStore('floor-store', () => {
     fetchFloors,
     createFloor,
     updateFloor,
+    reorderFloors, // ← Tambah ini
     deleteFloor
   }
 })

@@ -1,15 +1,6 @@
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref, resolveComponent, watch } from "vue";
+import Sortable from 'sortablejs';
 import type { FloorTable } from "~/stores/transaction/floorPlan";
-
-// Import komponen lokal (Pastikan path sesuai)
-// import TablePlanCard from "~/components/floor/TablePlanCard.vue";
-// import TablePlanDetailSidebar from "~/components/floor/TablePlanDetailSidebar.vue";
-
-const UIcon = resolveComponent("UIcon");
-const UButton = resolveComponent("UButton");
-const UBadge = resolveComponent("UBadge");
-const UTooltip = resolveComponent("UTooltip");
 
 /* --- STORES --- */
 const floorStore = useFloorStore();
@@ -21,14 +12,54 @@ const { floors } = storeToRefs(floorStore);
 const activeFloorId = ref<number | null>(null);
 const selectedTable = ref<FloorTable | null>(null);
 const now = ref(new Date());
+const isReordering = ref(false);
+const floorListRef = ref<HTMLElement | null>(null);
+let sortableInstance: Sortable | null = null;
 
 /* --- INIT --- */
 onMounted(async () => {
-  await floorStore.fetchFloors({ branch_id: 1, page: 1, per_page: 100 });
+  await floorStore.fetchFloors({ page: 1, per_page: 100 });
   if (floors.value.length > 0) activeFloorId.value = floors.value[0].id;
   
   const timer = setInterval(() => { now.value = new Date(); }, 60000);
   onUnmounted(() => clearInterval(timer));
+
+  // Setup Sortable manually
+  if (floorListRef.value) {
+    sortableInstance = new Sortable(floorListRef.value, {
+      animation: 150,
+      handle: '.drag-handle',
+      ghostClass: 'opacity-30',
+      disabled: true, // Default disabled
+      onStart: () => {
+        console.log('Drag started');
+      },
+      onEnd: async (evt) => {
+        console.log('Drag ended:', evt.oldIndex, '→', evt.newIndex);
+        if (evt.oldIndex !== undefined && evt.newIndex !== undefined && evt.oldIndex !== evt.newIndex && isReordering.value) {
+          // Reorder array
+          const movedFloor = floors.value.splice(evt.oldIndex, 1)[0];
+          floors.value.splice(evt.newIndex, 0, movedFloor);
+          
+          try {
+            await floorStore.reorderFloors(floors.value);
+            console.log('Reorder saved successfully');
+          } catch (error) {
+            console.error('Failed to reorder floors:', error);
+          }
+        }
+      }
+    });
+    console.log('Sortable initialized:', sortableInstance);
+  }
+});
+
+/* --- WATCH REORDER MODE --- */
+watch(isReordering, (newVal) => {
+  console.log('Reorder mode:', newVal);
+  if (sortableInstance) {
+    sortableInstance.option('disabled', !newVal);
+  }
 });
 
 /* --- WATCH & FETCH --- */
@@ -41,7 +72,7 @@ watch(activeFloorId, (newId) => {
 
 async function refreshSnapshot() {
   if (!activeFloorId.value) return;
-  await floorPlanStore.fetchSnapshot({ branch_id: 1, floor_id: activeFloorId.value });
+  await floorPlanStore.fetchSnapshot({ floor_id: activeFloorId.value });
 }
 
 /* --- HANDLERS --- */
@@ -53,17 +84,20 @@ function onCloseSidebar() {
   selectedTable.value = null;
 }
 
+function toggleReorderMode() {
+  isReordering.value = !isReordering.value;
+}
+
 /* --- COMPUTED HELPERS --- */
 const currentTimeStr = computed(() => 
   now.value.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })
 );
 
-// Hitung Statistik Sederhana untuk Header
 const stats = computed(() => {
   const total = tables.value.length;
   const occupied = tables.value.filter(t => t.status === 'occupied').length;
   const reserved = tables.value.filter(t => t.flags.is_reserved).length;
-  const available = total - occupied; // reserved masih dihitung available secara fisik (kosong)
+  const available = total - occupied;
   
   return { total, occupied, reserved, available };
 });
@@ -78,14 +112,40 @@ const stats = computed(() => {
       <div class="px-6 py-4 border-b border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 flex flex-col xl:flex-row justify-between items-center gap-4 shadow-sm z-20">
         
         <div class="flex items-center gap-4 w-full xl:w-auto overflow-x-auto no-scrollbar">
-          <div class="flex gap-1 p-1 bg-neutral-100 dark:bg-neutral-800 rounded-lg shrink-0">
+          
+          <!-- Toggle Reorder Button -->
+          <UTooltip :text="isReordering ? 'Done Reordering' : 'Reorder Floors'">
+            <UButton 
+              :icon="isReordering ? 'i-lucide-check' : 'i-lucide-grip-vertical'"
+              :variant="isReordering ? 'solid' : 'ghost'"
+              :color="isReordering ? 'primary' : 'neutral'"
+              size="sm"
+              @click="toggleReorderMode"
+            />
+          </UTooltip>
+
+          <!-- Floor Tabs with Drag & Drop -->
+          <div 
+            ref="floorListRef"
+            class="flex gap-1 p-1 bg-neutral-100 dark:bg-neutral-800 rounded-lg shrink-0"
+          >
             <button 
-              v-for="floor in floors" :key="floor.id"
-              class="px-4 py-1.5 text-sm font-medium rounded-md transition-all whitespace-nowrap"
-              :class="activeFloorId === floor.id ? 'bg-white dark:bg-neutral-700 shadow-sm text-neutral-900 dark:text-white ring-1 ring-black/5' : 'text-neutral-500 hover:text-neutral-700'"
-              @click="activeFloorId = floor.id"
-           
+              v-for="floor in floors" 
+              :key="floor.id"
+              class="px-4 py-1.5 text-sm font-medium rounded-md transition-all whitespace-nowrap flex items-center gap-2"
+              :class="[
+                activeFloorId === floor.id 
+                  ? 'bg-white dark:bg-neutral-700 shadow-sm text-neutral-900 dark:text-white ring-1 ring-black/5' 
+                  : 'text-neutral-500 hover:text-neutral-700',
+                isReordering ? 'cursor-move' : 'cursor-pointer'
+              ]"
+              @click="!isReordering && (activeFloorId = floor.id)"
             >
+              <Icon 
+                v-if="isReordering" 
+                name="lucide:grip-vertical" 
+                class="w-3.5 h-3.5 drag-handle cursor-grab active:cursor-grabbing opacity-40"
+              />
               {{ floor.name }}
             </button>
           </div>
@@ -110,7 +170,7 @@ const stats = computed(() => {
 
         <div class="flex items-center gap-3 w-full xl:w-auto justify-end">
            <div class="hidden md:flex items-center gap-2 px-3 py-1.5 bg-neutral-50 dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 rounded-md text-xs font-mono text-neutral-600 dark:text-neutral-300">
-              <UIcon name="i-lucide-clock" class="w-3.5 h-3.5 text-primary-500" />
+              <Icon name="lucide:clock" class="w-3.5 h-3.5 text-primary-500" />
               {{ currentTimeStr }}
            </div>
 
@@ -120,16 +180,23 @@ const stats = computed(() => {
         </div>
       </div>
 
+      <!-- Alert saat reorder mode active -->
+      <div v-if="isReordering" class="px-6 py-2 bg-primary-50 dark:bg-primary-950/30 border-b border-primary-200 dark:border-primary-800 flex items-center gap-2 text-sm text-primary-700 dark:text-primary-300">
+        <Icon name="lucide:info" class="w-4 h-4" />
+        <span class="font-medium">Drag floors to reorder</span>
+        <span class="text-primary-600 dark:text-primary-400">• Changes are saved automatically</span>
+      </div>
+
       <div class="flex-1 overflow-auto bg-neutral-50/50 dark:bg-neutral-950 custom-scrollbar relative p-4 sm:p-6">
         
         <div v-if="loadingSnapshot && tables.length === 0" class="flex flex-col justify-center items-center h-full gap-3 opacity-60">
-             <UIcon name="i-lucide-loader-2" class="w-10 h-10 animate-spin text-primary-500" />
+             <Icon name="lucide:loader-2" class="w-10 h-10 animate-spin text-primary-500" />
              <p class="text-sm font-medium">Updating floor status...</p>
         </div>
         
         <div v-else-if="tables.length === 0" class="flex flex-col justify-center items-center h-full gap-4 text-center">
              <div class="w-16 h-16 rounded-full bg-neutral-100 dark:bg-neutral-800 flex items-center justify-center">
-                <UIcon name="i-lucide-layout-dashboard" class="w-8 h-8 text-neutral-400" />
+                <Icon name="lucide:layout-dashboard" class="w-8 h-8 text-neutral-400" />
              </div>
              <div>
                 <h3 class="text-lg font-bold text-neutral-900 dark:text-white">No Tables Here</h3>

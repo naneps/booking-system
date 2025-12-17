@@ -21,14 +21,11 @@ const UFormField = resolveComponent('UFormField')
 const UTextarea = resolveComponent('UTextarea')
 
 // Local components (sesuaikan path jika beda)
-import BranchSelect from '~/components/BranchSelect.vue'
 
 // Stores
 const floorStore = useFloorStore()
-const branchStore = useBranchStore()
 
 const { floors, loading: floorLoading, totalItems } = storeToRefs(floorStore)
-const { branchList } = storeToRefs(branchStore)
 
 // Toast
 const toast = useToast()
@@ -45,14 +42,12 @@ function refreshData() {
     page: page.value,
     per_page: pageSize.value,
     q: q.value || undefined,
-    branch_id: selectedBranchFilter.value ?? undefined
   })
 }
 
 // initial
 onMounted(async () => {
   // load branch list for dropdown
-  await branchStore.fetchBranchList({ per_page: 100 })
   refreshData()
 })
 
@@ -159,7 +154,6 @@ const nativeSubmitRef = ref<HTMLButtonElement | null>(null)
 const schema = z.object({
   name: z.string().min(1, 'Floor Name is required'),
   code: z.string().optional(),
-  branch_id: z.number({ required_error: 'Please select a branch' })
 })
 type Schema = z.output<typeof schema>
 
@@ -292,7 +286,6 @@ function handleDelete(id: number) {
               </template>
             </UInput>
 
-            <BranchSelect v-model="selectedBranchFilter" placeholder="Filter by Branch" class="w-48" />
 
             <UButton v-if="selectedBranchFilter" icon="i-lucide-x" color="neutral" variant="ghost" size="xs" @click="selectedBranchFilter = undefined" />
           </div>
@@ -365,9 +358,6 @@ function handleDelete(id: number) {
           <!-- native submit hidden for footer fallback -->
           <button ref="nativeSubmitRef" type="submit" class="hidden" />
 
-          <UFormField label="Select Branch" name="branch_id" required>
-            <BranchSelect v-model="state.branch_id" placeholder="Choose a branch" class="w-full" />
-          </UFormField>
 
           <UFormField label="Floor Code (Optional)" name="code">
             <UInput v-model="state.code" placeholder="e.g. L1" icon="i-lucide-qr-code" class="w-full" />
@@ -381,8 +371,8 @@ function handleDelete(id: number) {
       </div>
 
       <div class="p-4 border-t border-neutral-200 dark:border-neutral-800 bg-neutral-50 dark:bg-neutral-900 flex gap-3">
-        <UButton block color="neutral" variant="outline" @click="closeForm" class="flex-1">Cancel</UButton>
-        <UButton block color="primary" :loading="formLoading" class="flex-1" @click="nativeSubmitRef?.click?.()" icon="i-lucide-save">
+        <UButton block color="neutral" variant="outline"  class="flex-1" @click="closeForm">Cancel</UButton>
+        <UButton block color="primary" :loading="formLoading" class="flex-1" icon="i-lucide-save"  @click="nativeSubmitRef?.click?.()" >
           {{ isEdit ? 'Save Changes' : 'Create Floor' }}
         </UButton>
       </div>

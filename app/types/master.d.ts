@@ -15,13 +15,13 @@ export interface Branch {
 // 2. Tipe Data Floor
 export interface Floor {
   id: number
-  branch_id: number
   name: string
   code?: string | null
   layout_json?: string | null
   meta?: Record<string, any> | null
   created_at?: string
   updated_at?: string
+  sort_order?: number
   
   // --- UPDATE BARU ---
   count_tables?: number // Jumlah meja
@@ -37,7 +37,6 @@ export type TableStatus = 'available' | 'hold' | 'booked' | 'occupied' | 'cleani
 
 export interface Table {
   id: number
-  branch_id: number
   floor_id: number
   name: string
   capacity: number

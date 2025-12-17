@@ -2,7 +2,9 @@
 export default defineNuxtConfig({
   compatibilityDate: "2025-07-15",
   devtools: {enabled: true},
-
+build: {
+  transpile: ['@fullcalendar']
+},
   routeRules: {
     //  "/**": { ssr: true },
     // "/api/v1/**": {

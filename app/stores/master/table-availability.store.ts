@@ -20,9 +20,9 @@ export const useTableAvailabilityStore = defineStore('table-availability', () =>
   const tables = ref<AvailableTable[]>([])
   const meta = ref<any>(null)
   const loading = ref(false)
+  const brancHId = useCookie('selected_branch_id', {path: '/'})
 
   async function checkAvailability(params: {
-    branch_id: number
     floor_id?: number
     start_at: string
     end_at?: string
@@ -31,7 +31,7 @@ export const useTableAvailabilityStore = defineStore('table-availability', () =>
     loading.value = true
     try {
       const res = await useApi<any>('/api/v1/tables/availability', {
-        query: params
+        query: {...params , branch_id: brancHId.value},
       })
       tables.value = res.data.tables
       console.log(res)

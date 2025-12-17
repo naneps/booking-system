@@ -3,6 +3,7 @@
 import type { TableColumn } from "@nuxt/ui";
 import { getCoreRowModel } from "@tanstack/vue-table";
 import { h, onMounted, ref, resolveComponent, watch } from "vue";
+import type { Booking } from "~/types/booking.types";
 
 /* --- COMPONENTS --- */
 const UButton = resolveComponent("UButton");
@@ -51,7 +52,7 @@ const refreshData = async () => {
     page: page.value,
     per_page: pageSize.value,
     q: q.value,
-    branch_id: selectedBranchFilter.value,
+    // branch_id: selectedBranchFilter.value,
     // floor_id: selectedFloorFilter.value, // Aktifkan jika backend support
     status: selectedStatusFilter.value,
     order_by: sort.value?.column,

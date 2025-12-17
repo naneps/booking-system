@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import {computed, onMounted, reactive, ref, resolveComponent, watch} from "vue";
-import {z} from "zod";
+import { computed, onMounted, reactive, ref, resolveComponent, watch } from "vue";
+import { z } from "zod";
 
 /* ================= UI ================= */
 const UIcon = resolveComponent("UIcon");
@@ -14,7 +14,6 @@ const floorStore = useFloorStore();
 const toast = useToast();
 
 /* ================= CONST ================= */
-const BRANCH_ID = 1;
 
 /* ================= HELPERS ================= */
 function nowLocalDatetime() {
@@ -73,7 +72,7 @@ onMounted(async () => {
   await floorStore.fetchFloors({
     page: 1,
     per_page: 100,
-    branch_id: BRANCH_ID,
+
   });
 });
 
@@ -82,7 +81,6 @@ watch(
   () => [state.start_at, state.duration_minutes, activeFloorId.value],
   () => {
     availabilityStore.checkAvailability({
-      branch_id: BRANCH_ID,
       floor_id: activeFloorId.value ?? undefined,
       start_at: state.start_at,
       duration_minutes: state.duration_minutes,
@@ -107,7 +105,6 @@ async function submitBooking() {
 
   try {
     await bookingStore.createBooking({
-      branch_id: BRANCH_ID,
       customer_name: state.customer_name,
       customer_phone: state.customer_phone,
       party_size: state.party_size,

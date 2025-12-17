@@ -5,21 +5,21 @@ import type { Table } from "~/types/master";
 export const useTableStore = defineStore("table-store", () => {
   const tables = ref<Table[]>([]);
   const totalItems = ref(0);
-  const loading = ref(false);
+  const loading = ref(false); 
+  const brancHId = useCookie('selected_branch_id', { path: '/' })
 
   // params: page, per_page, q, branch_id, floor_id, status
   async function fetchTables(params: {
     page: number;
     per_page: number;
     q?: string;
-    branch_id?: number | null;
     floor_id?: number | null;
     status?: string | null;
   }) {
     loading.value = true;
     try {
       const response = await useApi<any>("/api/v1/tables", {
-        query: params,
+        query: {...params , branch_id: brancHId.value},
       });
       // response likely paginated
       tables.value = response.data ?? [];
@@ -35,7 +35,10 @@ export const useTableStore = defineStore("table-store", () => {
   async function createTable(payload: Partial<Table>) {
     const {data} = await useApi<{data: Table}>("/api/v1/tables", {
       method: "POST",
-      body: payload,
+      body: {
+        ...payload,
+        branch_id: brancHId.value
+      },
     });
     return data;
   }
