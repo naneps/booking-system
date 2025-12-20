@@ -1,52 +1,66 @@
 import type { User } from "~/types/user.types";
 
+export const useAuthStore = defineStore("auth", () => {
+  const user = ref<User | null>(null);
+  const pending = ref(false);
+  const error = ref<string | null>(null);
 
-export const useAuthStore = defineStore('auth', () => {
-  const user = ref<User | null>(null)
-  const pending = ref(false)
-  const error = ref<string | null>(null)
-
-  const isAuthenticated = computed(() => !!user.value)
+  const isAuthenticated = computed(() => !!user.value);
 
   async function login(email: string, password: string) {
-    pending.value = true
-    error.value = null
+    pending.value = true;
+    error.value = null;
     try {
-      const res = await $fetch<{ ok: boolean; user: User }>('/api/auth/login', {
-        method: 'POST',
-        body: { email, password }
-      })
-      user.value = res.user ?? null
-      return user.value
+      await $fetch("/api/auth/login", {
+        method: "POST",
+        body: {email, password},
+        credentials: "include", // 🔥 WAJIB
+      });
+
+      // 🔥 INI KUNCI UTAMA
+      await fetchMe();
+
+      return user.value;
     } catch (e: any) {
-      error.value = e?.data?.message || 'Login gagal'
-      throw e
+      error.value = e?.data?.message || "Login gagal";
+      throw e;
     } finally {
-      pending.value = false
+      pending.value = false;
     }
   }
 
   async function fetchMe() {
-    // biarkan server handle (pakai /api/auth/me yang bisa fallback decode JWT)
-    try {
-      const res = await $fetch<any>('/api/auth/me')
-      user.value = (res?.data ?? null) as User | null
-    } catch {
-      user.value = null
-    }
-    return user.value
+  try {
+    const res = await $fetch<any>('/api/auth/me', {
+      credentials: 'include', // 🔥 INI PENTING
+    })
+    user.value = res?.data ?? res ?? null
+  } catch {
+    user.value = null
   }
+  return user.value
+}
+
 
   async function logout() {
-    await $fetch('/api/auth/logout', { method: 'POST' })
-    user.value = null
+    await $fetch("/api/auth/logout", {method: "POST"});
+    user.value = null;
   }
 
   function $reset() {
-    user.value = null
-    pending.value = false
-    error.value = null
+    user.value = null;
+    pending.value = false;
+    error.value = null;
   }
 
-  return { user, pending, error, isAuthenticated, login, fetchMe, logout, $reset }
-})
+  return {
+    user,
+    pending,
+    error,
+    isAuthenticated,
+    login,
+    fetchMe,
+    logout,
+    $reset,
+  };
+});

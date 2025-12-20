@@ -6,7 +6,7 @@ export const useWaitlistStore = defineStore("waitlist-store", () => {
   const waitlists = ref<Waitlist[]>([]);
   const loading = ref(false);
   const error = ref<string | null>(null);
-
+  const branchId = useCookie("selected_branch_id", { path: "/" });
   // --- ACTIONS ---
 
   /**
@@ -19,10 +19,11 @@ export const useWaitlistStore = defineStore("waitlist-store", () => {
     try {
       const response = await useApi<any>("/api/v1/waitlists", {
         method: "GET",
-        params: params,
+        params: {...params , branch_id: branchId.value},
       });
       // Backend return resource collection, biasanya di wrap 'data'
       waitlists.value = response.data;
+      console.log(waitlists.value);
     } catch (err: any) {
       error.value = err.message || "Failed to fetch waitlist";
       waitlists.value = [];
@@ -41,9 +42,8 @@ export const useWaitlistStore = defineStore("waitlist-store", () => {
     try {
       const response = await useApi<any>("/api/v1/waitlists", {
         method: "POST",
-        body: payload,
+        body: {...payload , branch_id: branchId.value},
       });
-
       // Tambahkan data baru ke list paling bawah (atau refetch)
       // Karena backend return single resource:
       waitlists.value.push(response.data);

@@ -56,7 +56,7 @@ const refreshData = async () => {
     // floor_id: selectedFloorFilter.value, // Aktifkan jika backend support
     status: selectedStatusFilter.value,
     order_by: sort.value?.column,
-    order_dir: sort.value?.direction,
+    order_dir: 'asc',
     
     // BARU: Kirim Date Range ke Backend
     from: filterDateFrom.value,

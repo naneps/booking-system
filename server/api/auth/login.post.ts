@@ -28,8 +28,8 @@ export default defineEventHandler(async (event) => {
   if (!res?.token) throw createError({ statusCode: 401, statusMessage: 'Login gagal' })
 
   setCookie(event, authCookieName, res.token, {
-    httpOnly: true,
-    secure: !isDev,
+    // httpOnly: true,
+    // secure: !isDev,
     sameSite: 'lax',
     path: '/',
     maxAge: maxAgeFromJwt(res.token) || 60 * 60 * 24 * 7

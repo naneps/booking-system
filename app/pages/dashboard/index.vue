@@ -1,57 +1,58 @@
 <script setup lang="ts">
-import { ref, resolveComponent } from "vue";
+import { storeToRefs } from "pinia";
+import { onMounted, ref } from "vue";
+import { useDashboardStore } from "~/stores/dashboard.store";
 
-/* --- COMPONENTS --- */
-const UIcon = resolveComponent("UIcon");
-const UButton = resolveComponent("UButton");
-const UBadge = resolveComponent("UBadge");
-const UProgress = resolveComponent("UProgress");
-const UAvatar = resolveComponent("UAvatar");
-const UInput = resolveComponent("UInput");
+/* --- INIT STORE --- */
+const store = useDashboardStore();
+// State (Read)
+const { stats, upcomingSchedule, waitingList, floorStatus, alerts, loading } = storeToRefs(store);
+// Action (Write)
+const { fetchDashboard, seatWaitlistGuest, removeWaitlistGuest, checkInBooking, addWaitlistGuest } = store;
 
-/* --- STATE MANAGEMENT --- */
+/* --- LOCAL STATE --- */
 const activeTab = ref<'arrivals' | 'waitlist'>('arrivals');
 
-/* --- DUMMY DATA --- */
-const stats = ref({
-  total_bookings_today: 42,
-  seated_guests: 86,
-  upcoming_2h: 5, 
-  available_tables: 12,
+// Form Add Waitlist
+const newWaitlist = ref({
+  customer: '',
+  pax: 2
 });
 
-// SCHEDULE (BOOKINGS)
-const upcomingSchedule = ref([
-  { id: 101, customer: "Budi Santoso", pax: 4, time: "16:15", time_diff: "in 15m", status: "confirmed", is_urgent: true },
-  { id: 102, customer: "Siti Aminah", pax: 2, time: "16:30", time_diff: "in 30m", status: "confirmed", is_urgent: true },
-  { id: 103, customer: "PT. Maju Mundur", pax: 12, time: "17:00", time_diff: "in 1h", status: "confirmed", is_urgent: true },
-  { id: 104, customer: "Andi & Keluarga", pax: 6, time: "17:45", time_diff: "in 1h 45m", status: "pending", is_urgent: true },
-]);
+/* --- LIFECYCLE --- */
+onMounted(() => {
+  fetchDashboard();
+});
 
-// WAITING LIST (WALK-INS)
-const waitingList = ref([
-  { id: 201, customer: "Rara Sekar", pax: 2, joined_at: "15:45", wait_time: 25, phone: "0812..." },
-  { id: 202, customer: "Joni Iskandar", pax: 4, joined_at: "15:55", wait_time: 15, phone: "0813..." },
-  { id: 203, customer: "Grup Kantor", pax: 8, joined_at: "16:05", wait_time: 5, phone: "0811..." },
-]);
-
-// FLOOR CAPACITY
-const floorStatus = ref([
-  { name: "Ground Floor", current: 45, max: 60, color: "green" },
-  { name: "1st Floor (VIP)", current: 10, max: 20, color: "orange" },
-  { name: "Rooftop", current: 31, max: 40, color: "primary" },
-]);
-
-/* --- ACTIONS --- */
-const handleSeat = (id: number, type: 'booking' | 'waitlist') => {
-  alert(`Seating ${type} ID: ${id}`);
-  // Logic connect ke store nanti
+/* --- HANDLERS --- */
+const handleRefresh = () => {
+  fetchDashboard();
 };
 
-const handleRemoveWaitlist = (id: number) => {
-  waitingList.value = waitingList.value.filter(w => w.id !== id);
+const handleSeat = async (id: number, type: 'booking' | 'waitlist') => {
+  if (type === 'waitlist') {
+    if (confirm('Seat this guest?')) await seatWaitlistGuest(id);
+  } else {
+    if (confirm('Check-in booking?')) await checkInBooking(id);
+  }
 };
 
+const handleRemoveWaitlist = async (id: number) => {
+  if (confirm('Remove from list?')) await removeWaitlistGuest(id);
+};
+
+const handleAddWaitlist = async () => {
+  if (!newWaitlist.value.customer) return;
+  await addWaitlistGuest({
+    customer: newWaitlist.value.customer,
+    pax: Number(newWaitlist.value.pax)
+  });
+  // Reset Form
+  newWaitlist.value.customer = '';
+  newWaitlist.value.pax = 2;
+};
+
+// Helper warna waitlist
 const getWaitColor = (min: number) => {
   if (min > 30) return 'text-red-600 bg-red-50 dark:bg-red-900/20';
   if (min > 15) return 'text-orange-600 bg-orange-50 dark:bg-orange-900/20';
@@ -60,202 +61,264 @@ const getWaitColor = (min: number) => {
 </script>
 
 <template>
-  <div class="flex flex-col gap-6 p-2 min-h-screen">
+  <div class="flex flex-col gap-6 p-4 min-h-screen relative">
     
+    <div v-if="loading && stats.total_bookings_today !== undefined" class="absolute inset-0 z-50 bg-white/50 dark:bg-black/50 flex items-center justify-center backdrop-blur-sm rounded-xl">
+      <UIcon name="i-lucide-loader-2" class="w-10 h-10 animate-spin text-primary-500" />
+    </div>
+
     <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
       <div>
         <h1 class="text-2xl font-bold text-neutral-900 dark:text-white flex items-center gap-2">
-          Dashboard
-          <span class="text-sm font-normal text-neutral-500 bg-neutral-100 dark:bg-neutral-800 px-2 py-0.5 rounded-full">Live</span>
+          Restaurant Dashboard
+          <span class="text-xs font-normal text-green-700 bg-green-100 dark:text-green-300 dark:bg-green-900/30 px-2 py-0.5 rounded-full flex items-center gap-1">
+            <span class="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></span> Live
+          </span>
         </h1>
-        <p class="text-neutral-500 text-sm mt-1">
-          Operasional hari ini berjalan lancar.
-        </p>
+        <p class="text-neutral-500 text-sm mt-1">Real-time overview of your restaurant floor.</p>
       </div>
       <div class="flex gap-2">
-        <UButton color="white" icon="i-lucide-refresh-cw">Refresh</UButton>
+        <UButton color="white" icon="i-lucide-refresh-cw" :loading="loading" @click="handleRefresh">Refresh</UButton>
         <UButton color="primary" icon="i-lucide-plus" to="/transaction/create-booking">New Booking</UButton>
       </div>
     </div>
 
-    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-      <div class="p-4 rounded-xl border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 shadow-sm flex justify-between items-start">
-        <div>
-          <div class="text-neutral-500 text-xs font-bold uppercase tracking-wider mb-1">Total Bookings</div>
-          <div class="text-2xl font-bold text-neutral-900 dark:text-white">{{ stats.total_bookings_today }}</div>
+    <ClientOnly>
+      <template #fallback>
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+           <UCard v-for="i in 4" :key="i" :ui="{ body: { padding: 'p-4' } }">
+             <div class="flex justify-between items-start">
+               <div class="space-y-2">
+                 <USkeleton class="h-3 w-20" />
+                 <USkeleton class="h-8 w-10" />
+               </div>
+               <USkeleton class="h-9 w-9 rounded-lg" />
+             </div>
+           </UCard>
         </div>
-        <div class="p-2 bg-neutral-100 dark:bg-neutral-800 rounded-lg text-neutral-500"><UIcon name="i-lucide-calendar" class="w-5 h-5"/></div>
-      </div>
+      </template>
 
-      <div class="p-4 rounded-xl border border-orange-200 dark:border-orange-900/30 bg-orange-50 dark:bg-orange-900/10 shadow-sm flex justify-between items-start">
-        <div>
-          <div class="text-orange-600 dark:text-orange-400 text-xs font-bold uppercase tracking-wider mb-1 flex items-center gap-1">
-            <UIcon name="i-lucide-clock" class="w-3 h-3" /> Upcoming (2h)
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <UCard :ui="{ body: { padding: 'p-4' } }">
+          <div class="flex justify-between items-start">
+             <div>
+               <div class="text-xs font-bold text-gray-500 uppercase">Total Bookings</div>
+               <div class="text-2xl font-bold mt-1">{{ stats?.total_bookings_today || 0 }}</div>
+             </div>
+             <div class="p-2 bg-gray-100 dark:bg-gray-800 rounded-lg text-gray-500">
+               <UIcon name="i-lucide-calendar" class="w-5 h-5"/>
+             </div>
           </div>
-          <div class="text-2xl font-bold text-neutral-900 dark:text-white">{{ stats.upcoming_2h }} <span class="text-sm font-normal text-neutral-500">groups</span></div>
-        </div>
-        <div class="p-2 bg-orange-100 dark:bg-orange-800/50 rounded-lg text-orange-600"><UIcon name="i-lucide-alert-circle" class="w-5 h-5"/></div>
-      </div>
+        </UCard>
 
-      <div class="p-4 rounded-xl border border-purple-200 dark:border-purple-900/30 bg-purple-50 dark:bg-purple-900/10 shadow-sm flex justify-between items-start">
-        <div>
-          <div class="text-purple-600 dark:text-purple-400 text-xs font-bold uppercase tracking-wider mb-1">Waiting List</div>
-          <div class="text-2xl font-bold text-neutral-900 dark:text-white">{{ waitingList.length }} <span class="text-sm font-normal text-neutral-500">groups</span></div>
-        </div>
-        <div class="p-2 bg-purple-100 dark:bg-purple-800/50 rounded-lg text-purple-600"><UIcon name="i-lucide-clipboard-list" class="w-5 h-5"/></div>
-      </div>
+        <UCard :ui="{ body: { padding: 'p-4' }, ring: 'ring-1 ring-orange-200 dark:ring-orange-900' }" class="bg-orange-50 dark:bg-orange-900/10">
+          <div class="flex justify-between items-start">
+             <div>
+               <div class="text-xs font-bold text-orange-600 dark:text-orange-400 uppercase flex items-center gap-1">
+                  <UIcon name="i-lucide-clock" class="w-3 h-3"/> Upcoming (2h)
+               </div>
+               <div class="text-2xl font-bold mt-1">{{ stats?.upcoming_2h || 0 }} <span class="text-sm font-normal text-gray-500">groups</span></div>
+             </div>
+             <div class="p-2 bg-orange-100 dark:bg-orange-800/50 rounded-lg text-orange-600">
+               <UIcon name="i-lucide-alert-circle" class="w-5 h-5"/>
+             </div>
+          </div>
+        </UCard>
 
-      <div class="p-4 rounded-xl border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 shadow-sm flex justify-between items-start">
-        <div>
-          <div class="text-neutral-500 text-xs font-bold uppercase tracking-wider mb-1">Available Tables</div>
-          <div class="text-2xl font-bold text-neutral-900 dark:text-white">{{ stats.available_tables }}</div>
-        </div>
-        <div class="p-2 bg-green-50 dark:bg-green-900/20 rounded-lg text-green-600"><UIcon name="i-lucide-armchair" class="w-5 h-5"/></div>
+        <UCard :ui="{ body: { padding: 'p-4' }, ring: 'ring-1 ring-purple-200 dark:ring-purple-900' }" class="bg-purple-50 dark:bg-purple-900/10">
+          <div class="flex justify-between items-start">
+             <div>
+               <div class="text-xs font-bold text-purple-600 dark:text-purple-400 uppercase">Waiting List</div>
+               <div class="text-2xl font-bold mt-1">{{ waitingList?.length || 0 }} <span class="text-sm font-normal text-gray-500">groups</span></div>
+             </div>
+             <div class="p-2 bg-purple-100 dark:bg-purple-800/50 rounded-lg text-purple-600">
+               <UIcon name="i-lucide-users" class="w-5 h-5"/>
+             </div>
+          </div>
+        </UCard>
+
+        <UCard :ui="{ body: { padding: 'p-4' } }">
+          <div class="flex justify-between items-start">
+             <div>
+               <div class="text-xs font-bold text-gray-500 uppercase">Available Tables</div>
+               <div class="text-2xl font-bold mt-1">{{ stats?.available_tables || 0 }}</div>
+             </div>
+             <div class="p-2 bg-green-50 dark:bg-green-900/20 rounded-lg text-green-600">
+               <UIcon name="i-lucide-armchair" class="w-5 h-5"/>
+             </div>
+          </div>
+        </UCard>
       </div>
-    </div>
+    </ClientOnly>
 
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
       
-      <div class="lg:col-span-2 rounded-xl border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 flex flex-col min-h-[400px]">
+      <div class="lg:col-span-2 flex flex-col gap-4">
         
-        <div class="p-2 border-b border-neutral-200 dark:border-neutral-800 flex gap-2">
-          <button 
-            @click="activeTab = 'arrivals'"
-            class="flex-1 py-2 text-sm font-semibold rounded-lg transition-colors flex items-center justify-center gap-2"
-            :class="activeTab === 'arrivals' ? 'bg-neutral-100 dark:bg-neutral-800 text-neutral-900 dark:text-white' : 'text-neutral-500 hover:bg-neutral-50 dark:hover:bg-neutral-800'"
-          >
-            <UIcon name="i-lucide-calendar-clock" class="w-4 h-4" />
-            Arrivals
-            <UBadge color="gray" variant="soft" size="xs" :ui="{ rounded: 'rounded-full' }">{{ upcomingSchedule.length }}</UBadge>
-          </button>
-          
-          <button 
-            @click="activeTab = 'waitlist'"
-            class="flex-1 py-2 text-sm font-semibold rounded-lg transition-colors flex items-center justify-center gap-2 relative"
-            :class="activeTab === 'waitlist' ? 'bg-purple-50 dark:bg-purple-900/20 text-purple-700 dark:text-purple-300' : 'text-neutral-500 hover:bg-neutral-50 dark:hover:bg-neutral-800'"
-          >
-            <UIcon name="i-lucide-hourglass" class="w-4 h-4" />
-            Waiting List
-            <UBadge color="purple" size="xs" :ui="{ rounded: 'rounded-full' }">{{ waitingList.length }}</UBadge>
-            
-            <span v-if="waitingList.length > 5" class="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full animate-pulse"></span>
-          </button>
+        <div class="flex p-1 bg-gray-100 dark:bg-gray-800 rounded-lg">
+           <button @click="activeTab = 'arrivals'" 
+             class="flex-1 py-2 text-sm font-medium rounded-md transition-all flex items-center justify-center gap-2"
+             :class="activeTab === 'arrivals' ? 'bg-white dark:bg-gray-900 shadow-sm text-primary-600' : 'text-gray-500 hover:text-gray-700'">
+             <UIcon name="i-lucide-calendar-clock" class="w-4 h-4"/> Arrivals
+             <UBadge color="gray" size="xs">{{ upcomingSchedule?.length || 0 }}</UBadge>
+           </button>
+           <button @click="activeTab = 'waitlist'" 
+             class="flex-1 py-2 text-sm font-medium rounded-md transition-all flex items-center justify-center gap-2"
+             :class="activeTab === 'waitlist' ? 'bg-white dark:bg-gray-900 shadow-sm text-purple-600' : 'text-gray-500 hover:text-gray-700'">
+             <UIcon name="i-lucide-hourglass" class="w-4 h-4"/> Waiting List
+             <UBadge color="purple" size="xs">{{ waitingList?.length || 0 }}</UBadge>
+           </button>
         </div>
 
-        <div v-if="activeTab === 'arrivals'" class="p-4 flex flex-col gap-3">
-          <div 
-            v-for="book in upcomingSchedule" 
-            :key="book.id"
-            class="flex items-center gap-4 p-3 rounded-lg border transition-all"
-            :class="book.is_urgent ? 'border-orange-200 bg-orange-50/30 dark:border-orange-900/30 dark:bg-orange-900/10' : 'border-neutral-100 bg-white dark:border-neutral-800'"
-          >
-            <div class="flex flex-col items-center min-w-[60px]">
-              <span class="text-lg font-bold text-neutral-900 dark:text-white">{{ book.time }}</span>
-              <span class="text-[10px] uppercase font-bold px-1.5 py-0.5 rounded text-white" 
-                :class="book.is_urgent ? 'bg-orange-500' : 'bg-neutral-400'">
-                {{ book.time_diff }}
-              </span>
-            </div>
-            <div class="w-px h-10 bg-neutral-200 dark:bg-neutral-800"></div>
-            <div class="flex-1">
-              <div class="font-semibold text-neutral-900 dark:text-white">{{ book.customer }}</div>
-              <div class="text-xs text-neutral-500 flex gap-3 mt-0.5">
-                <span class="flex items-center gap-1"><UIcon name="i-lucide-users" class="w-3 h-3" /> {{ book.pax }} Pax</span>
-                <span class="flex items-center gap-1"><UIcon name="i-lucide-utensils" class="w-3 h-3" /> Table TBD</span>
-              </div>
-            </div>
-            <UButton size="xs" :color="book.status === 'pending' ? 'primary' : 'neutral'" :variant="book.status === 'pending' ? 'solid' : 'ghost'" @click="handleSeat(book.id, 'booking')">
-              {{ book.status === 'pending' ? 'Confirm' : 'Check-in' }}
-            </UButton>
-          </div>
-          <div v-if="upcomingSchedule.length === 0" class="text-center py-10 text-neutral-400">
-            No upcoming bookings
-          </div>
-        </div>
+        <ClientOnly>
+          <template #fallback>
+             <UCard class="min-h-[400px]">
+               <div class="space-y-4 p-4">
+                 <USkeleton class="h-12 w-full" v-for="n in 5" :key="n"/>
+               </div>
+             </UCard>
+          </template>
 
-        <div v-if="activeTab === 'waitlist'" class="p-4 flex flex-col gap-3">
-          <div class="flex gap-2 mb-2">
-            <UInput placeholder="Guest Name" size="sm" class="flex-1" icon="i-lucide-user" />
-            <UInput placeholder="Pax" type="number" size="sm" class="w-20" />
-            <UButton icon="i-lucide-plus" size="sm" color="purple">Add</UButton>
-          </div>
+          <UCard v-if="activeTab === 'arrivals'" class="min-h-[400px]">
+             <div class="space-y-3">
+               <div v-if="upcomingSchedule?.length === 0" class="text-center py-10 text-gray-400">
+                 No upcoming bookings for now.
+               </div>
 
-          <div 
-            v-for="guest in waitingList" 
-            :key="guest.id"
-            class="flex items-center gap-3 p-3 rounded-lg border border-neutral-100 dark:border-neutral-800 bg-white dark:bg-neutral-900 hover:shadow-sm transition-all"
-          >
-            <UAvatar :text="guest.customer.substring(0,2)" size="sm" :alt="guest.customer" class="bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-300" />
-            
-            <div class="flex-1">
-              <div class="font-semibold text-sm text-neutral-900 dark:text-white flex items-center gap-2">
-                {{ guest.customer }}
-                <span class="text-xs font-normal text-neutral-400 bg-neutral-100 dark:bg-neutral-800 px-1.5 rounded">{{ guest.pax }} Pax</span>
-              </div>
-              <div class="text-xs text-neutral-500 mt-0.5">Joined at {{ guest.joined_at }}</div>
-            </div>
+               <div v-for="book in upcomingSchedule" :key="book.id" 
+                 class="flex items-center gap-4 p-3 rounded-lg border transition-all"
+                 :class="[
+                   book.is_urgent ? 'border-orange-200 bg-orange-50/50 dark:border-orange-900/30 dark:bg-orange-900/10' : 'border-gray-200 dark:border-gray-800',
+                   book.status === 'checked_in' ? 'opacity-50 grayscale' : ''
+                 ]">
+                 <div class="flex flex-col items-center min-w-[60px]">
+                    <span class="text-lg font-bold">{{ book.time }}</span>
+                    <span class="text-[10px] font-bold px-1.5 py-0.5 rounded text-white" :class="book.is_urgent ? 'bg-orange-500' : 'bg-gray-400'">
+                      {{ book.time_diff }}
+                    </span>
+                 </div>
+                 <div class="w-px h-10 bg-gray-200 dark:bg-gray-800"></div>
+                 <div class="flex-1">
+                    <div class="font-bold text-gray-900 dark:text-white">{{ book.customer }}</div>
+                    <div class="text-xs text-gray-500 flex gap-3 mt-1">
+                       <span class="flex items-center gap-1"><UIcon name="i-lucide-users" class="w-3 h-3"/> {{ book.pax }} Pax</span>
+                       <span class="flex items-center gap-1 uppercase">
+                         <UIcon name="i-lucide-circle" class="w-2 h-2" :class="book.status === 'checked_in' ? 'text-green-500' : 'text-blue-500'"/> 
+                         {{ book.status.replace('_', ' ') }}
+                       </span>
+                    </div>
+                 </div>
+                 <UButton size="xs" 
+                   :color="book.status === 'pending' ? 'primary' : 'gray'" 
+                   :variant="book.status === 'pending' ? 'solid' : 'ghost'"
+                   :disabled="book.status === 'checked_in'"
+                   @click="handleSeat(book.id, 'booking')">
+                   {{ book.status === 'checked_in' ? 'Seated' : 'Check-in' }}
+                 </UButton>
+               </div>
+             </div>
+          </UCard>
 
-            <div class="text-right px-3">
-              <div class="text-xs text-neutral-400 uppercase font-bold tracking-wider">Waiting</div>
-              <div class="font-mono font-bold text-sm px-1.5 rounded" :class="getWaitColor(guest.wait_time)">
-                {{ guest.wait_time }}m
-              </div>
-            </div>
+          <UCard v-if="activeTab === 'waitlist'" class="min-h-[400px]">
+             <div class="flex gap-2 mb-4 p-3 bg-gray-50 dark:bg-gray-800 rounded-lg border border-dashed border-gray-300 dark:border-gray-700">
+               <UInput v-model="newWaitlist.customer" placeholder="Guest Name" icon="i-lucide-user" size="sm" class="flex-1"/>
+               <UInput v-model="newWaitlist.pax" type="number" placeholder="Pax" size="sm" class="w-20"/>
+               <UButton icon="i-lucide-plus" size="sm" color="purple" @click="handleAddWaitlist">Add</UButton>
+             </div>
 
-            <div class="flex gap-1">
-              <UButton icon="i-lucide-armchair" size="xs" color="primary" variant="soft" @click="handleSeat(guest.id, 'waitlist')">Seat</UButton>
-              <UButton icon="i-lucide-phone" size="xs" color="gray" variant="ghost" />
-              <UButton icon="i-lucide-trash-2" size="xs" color="red" variant="ghost" @click="handleRemoveWaitlist(guest.id)" />
-            </div>
-          </div>
+             <div class="space-y-3">
+               <div v-if="waitingList?.length === 0" class="text-center py-10 text-gray-400">
+                 Waiting list is empty.
+               </div>
 
-          <div v-if="waitingList.length === 0" class="flex flex-col items-center justify-center py-10 text-neutral-400 gap-2">
-            <UIcon name="i-lucide-coffee" class="w-8 h-8 opacity-50" />
-            <span>Waiting list is empty</span>
-          </div>
-        </div>
+               <div v-for="guest in waitingList" :key="guest.id" 
+                  class="flex items-center gap-3 p-3 rounded-lg border border-gray-200 dark:border-gray-800 hover:border-purple-300 dark:hover:border-purple-800 transition-colors bg-white dark:bg-gray-900">
+                  <UAvatar :alt="guest.customer" size="sm" class="bg-purple-100 text-purple-700"/>
+                  
+                  <div class="flex-1">
+                     <div class="font-bold text-sm flex items-center gap-2">
+                        {{ guest.customer }}
+                        <UBadge color="gray" variant="soft" size="xs">{{ guest.pax }} Pax</UBadge>
+                     </div>
+                     <div class="text-xs text-gray-500 mt-0.5">Joined: {{ guest.joined_at }}</div>
+                  </div>
 
+                  <div class="text-right px-2">
+                     <div class="text-[10px] font-bold text-gray-400 uppercase tracking-wide">Waiting</div>
+                     <div class="font-mono font-bold text-sm px-1.5 rounded" :class="getWaitColor(guest.wait_time)">
+                        {{ guest.wait_time }}m
+                     </div>
+                  </div>
+
+                  <div class="flex gap-1">
+                     <UButton icon="i-lucide-armchair" size="xs" color="primary" variant="soft" @click="handleSeat(guest.id, 'waitlist')">Seat</UButton>
+                     <UButton icon="i-lucide-trash-2" size="xs" color="red" variant="ghost" @click="handleRemoveWaitlist(guest.id)"/>
+                  </div>
+               </div>
+             </div>
+          </UCard>
+        </ClientOnly>
       </div>
 
       <div class="flex flex-col gap-6">
         
-        <div class="rounded-xl border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 p-4">
-          <h3 class="font-semibold mb-4 flex items-center gap-2 text-sm uppercase tracking-wide text-neutral-500">
-            Floor Occupancy
-          </h3>
-          <div class="flex flex-col gap-5">
-            <div v-for="floor in floorStatus" :key="floor.name">
-              <div class="flex justify-between text-sm mb-1.5">
-                <span class="font-medium text-neutral-800 dark:text-white">{{ floor.name }}</span>
-                <span class="text-neutral-500 text-xs">{{ floor.current }}/{{ floor.max }}</span>
-              </div>
-              <UProgress :value="floor.current" :max="floor.max" :color="floor.color" size="sm" />
-            </div>
-          </div>
-        </div>
+        <UCard>
+           <template #header>
+             <h3 class="font-bold text-sm text-gray-500 uppercase tracking-wide">Floor Occupancy</h3>
+           </template>
+           
+           <ClientOnly>
+             <template #fallback>
+                <div class="space-y-4">
+                  <div v-for="n in 3" :key="n">
+                    <div class="flex justify-between mb-1"><USkeleton class="h-4 w-20"/><USkeleton class="h-4 w-10"/></div>
+                    <USkeleton class="h-2 w-full"/>
+                  </div>
+                </div>
+             </template>
+             <div class="space-y-4">
+               <div v-for="floor in floorStatus" :key="floor.name">
+                  <div class="flex justify-between text-sm mb-1">
+                     <span class="font-medium">{{ floor.name }}</span>
+                     <span class="text-gray-500 text-xs">{{ floor.current }}/{{ floor.max }}</span>
+                  </div>
+                  <UProgress :value="floor.current" :max="floor.max" :color="floor.color" size="sm"/>
+               </div>
+               <div v-if="floorStatus?.length === 0" class="text-sm text-gray-400 italic">No floor data available</div>
+             </div>
+           </ClientOnly>
+        </UCard>
 
-        <div class="rounded-xl border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 p-4 flex-1">
-          <h3 class="font-semibold mb-3 text-sm uppercase tracking-wide text-neutral-500">Alerts</h3>
-          <ul class="space-y-2">
-            <li class="flex gap-3 items-start p-2.5 rounded-lg bg-red-50 dark:bg-red-900/10 border border-red-100 dark:border-red-900/20 cursor-pointer">
-              <UIcon name="i-lucide-clock" class="w-4 h-4 text-red-500 mt-0.5" />
-              <div>
-                <div class="text-sm font-medium text-red-700 dark:text-red-300">Table 5 Overtime</div>
-                <div class="text-xs text-red-500/80">Exceeded booking time by 15m</div>
-              </div>
-            </li>
-            <li class="flex gap-3 items-start p-2.5 rounded-lg bg-orange-50 dark:bg-orange-900/10 border border-orange-100 dark:border-orange-900/20 cursor-pointer">
-              <UIcon name="i-lucide-alert-triangle" class="w-4 h-4 text-orange-500 mt-0.5" />
-              <div>
-                <div class="text-sm font-medium text-orange-700 dark:text-orange-300">Unconfirmed Booking</div>
-                <div class="text-xs text-orange-500/80">#104 approaching in 1h 45m</div>
-              </div>
-            </li>
-          </ul>
-        </div>
-
+        <UCard class="flex-1">
+           <template #header>
+             <h3 class="font-bold text-sm text-gray-500 uppercase tracking-wide">Alerts & Warnings</h3>
+           </template>
+           
+           <ClientOnly>
+             <template #fallback>
+                <div class="space-y-2">
+                   <USkeleton class="h-12 w-full" v-for="n in 2" :key="n" />
+                </div>
+             </template>
+             <ul class="space-y-2">
+               <li v-for="(alert, i) in alerts" :key="i"
+                  class="flex gap-3 items-start p-2.5 rounded-lg border text-sm"
+                  :class="alert.type === 'overtime' ? 'bg-red-50 border-red-100 text-red-800 dark:bg-red-900/10 dark:border-red-900' : 'bg-orange-50 border-orange-100 text-orange-800 dark:bg-orange-900/10 dark:border-orange-900'">
+                  <UIcon :name="alert.type === 'overtime' ? 'i-lucide-clock' : 'i-lucide-alert-triangle'" class="w-4 h-4 mt-0.5 flex-shrink-0"/>
+                  <div>
+                     <div class="font-bold">{{ alert.message }}</div>
+                     <div class="text-xs opacity-80 mt-0.5">{{ alert.details || 'Please check.' }}</div>
+                  </div>
+               </li>
+               <li v-if="alerts?.length === 0" class="text-center py-4 text-gray-400 text-sm">
+                  <UIcon name="i-lucide-check-circle" class="w-5 h-5 mx-auto mb-1 text-green-500"/>
+                  No active alerts
+               </li>
+             </ul>
+           </ClientOnly>
+        </UCard>
       </div>
-    </div>
 
+    </div>
   </div>
 </template>
